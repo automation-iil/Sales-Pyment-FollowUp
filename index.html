@@ -1613,7 +1613,9 @@
                 <span class="badge badge-active">id</span><span class="badge badge-active">name</span><span
                   class="badge badge-active">email</span><span class="badge badge-active">company</span><span
                   class="badge badge-active">phone</span><span class="badge badge-active">status</span><span
-                  class="badge badge-active">notes</span><span class="badge badge-active">followupSchedule</span><span
+                  class="badge badge-active">notes</span><span class="badge badge-active">customSubject</span><span
+                  class="badge badge-active">customMessage</span><span
+                  class="badge badge-active">scheduleType</span><span
                   class="badge badge-active">nextFollowup</span><span class="badge badge-active">lastContacted</span>
               </div>
             </div>
@@ -1649,14 +1651,14 @@
 
                 if (action === "add") {
                 sh.appendRow([body.id,body.name,body.email,body.company,body.phone,
-                body.status,body.notes,body.followupSchedule,body.nextFollowup,body.lastContacted]);
+                body.status,body.notes,body.customSubject,body.customMessage,body.scheduleType,body.nextFollowup,body.lastContacted]);
                 } else if (action === "update") {
                 const data = sh.getDataRange().getValues();
                 for (let i = 1; i < data.length; i++) { if (data[i][0]==body.id) {
-                  sh.getRange(i+1,1,1,10).setValues([[body.id,body.name,body.email,
-                  body.company,body.phone,body.status,body.notes,
-                  body.followupSchedule,body.nextFollowup,body.lastContacted]]); break; } } } else if (action==="delete"
-                  ) { const data=sh.getDataRange().getValues(); for (let i=1; i < data.length; i++) { if
+                  sh.getRange(i+1,1,1,12).setValues([[body.id,body.name,body.email,
+                  body.company,body.phone,body.status,body.notes,body.customSubject,body.customMessage,
+                  body.scheduleType,body.nextFollowup,body.lastContacted]]); break; } } } else if (action==="delete" ) {
+                  const data=sh.getDataRange().getValues(); for (let i=1; i < data.length; i++) { if
                   (data[i][0]==body.id) { sh.deleteRow(i+1); break; } } } return ContentService
                   .createTextOutput(JSON.stringify({success:true})) .setMimeType(ContentService.MimeType.JSON); } </div>
                   <p style="font-size:12px;color:var(--text3);margin-top:10px;">Deploy as <strong
@@ -1725,6 +1727,28 @@
           <div class="form-group">
             <label>Notes</label>
             <textarea id="contactNotes" placeholder="Any notes about this contact…"></textarea>
+          </div>
+
+          <!-- PERSONALIZED TEMPLATE -->
+          <div class="form-group"
+            style="padding: 12px; background: rgba(108,99,255,0.05); border: 1px dashed rgba(108,99,255,0.3); border-radius: var(--radius-sm);">
+            <label
+              style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:12px;display:block;">Personalized
+              Template (Optional)</label>
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label>Custom Subject</label>
+              <input type="text" id="contactCustomSubject" placeholder="Leave blank to use default subject…">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label>Custom Message</label>
+              <div class="editor-toolbar">
+                <button class="editor-btn" type="button" onclick="fmtContact('bold')"><b>B</b></button>
+                <button class="editor-btn" type="button" onclick="fmtContact('italic')"><i>I</i></button>
+                <button class="editor-btn" type="button" onclick="fmtContact('underline')"><u>U</u></button>
+              </div>
+              <div class="editor-area" id="contactCustomMessage" contenteditable="true" style="min-height: 80px;"
+                placeholder="Leave blank to use default message…"></div>
+            </div>
           </div>
 
           <!-- FOLLOW-UP SCHEDULE -->
@@ -1886,6 +1910,8 @@
         document.getElementById('contactPhone').value = '';
         document.getElementById('contactStatus').value = 'active';
         document.getElementById('contactNotes').value = '';
+        document.getElementById('contactCustomSubject').value = '';
+        document.getElementById('contactCustomMessage').innerHTML = '';
         scheduleType = 'none';
         customDates = [];
         selectScheduleType('none', document.querySelector('.schedule-tab'));
@@ -1904,6 +1930,8 @@
         document.getElementById('contactPhone').value = c.phone || '';
         document.getElementById('contactStatus').value = c.status || 'active';
         document.getElementById('contactNotes').value = c.notes || '';
+        document.getElementById('contactCustomSubject').value = c.customSubject || '';
+        document.getElementById('contactCustomMessage').innerHTML = c.customMessage || '';
         scheduleType = c.scheduleType || 'none';
         customDates = c.customDates || [];
         // set active schedule tab
@@ -1928,6 +1956,8 @@
           phone: document.getElementById('contactPhone').value.trim(),
           status: document.getElementById('contactStatus').value,
           notes: document.getElementById('contactNotes').value.trim(),
+          customSubject: document.getElementById('contactCustomSubject').value.trim(),
+          customMessage: document.getElementById('contactCustomMessage').innerHTML,
           scheduleType, customDates,
           followupSchedule: schedule.label,
           nextFollowup: schedule.next,
@@ -2171,8 +2201,8 @@
         document.getElementById('msgModalSub').textContent = `${c.company ? c.company + ' · ' : ''}${c.email}`;
         document.getElementById('msgTo').value = c.email;
         document.getElementById('msgCc').value = settings.ccTags?.join(', ') || '';
-        document.getElementById('msgSubject').value = `Follow-up — ${c.name}`;
-        let body = `Hi ${c.name},<br><br>I wanted to follow up…<br><br>Best regards`;
+        document.getElementById('msgSubject').value = c.customSubject || `Follow-up — ${c.name}`;
+        let body = c.customMessage || `Hi ${c.name},<br><br>I wanted to follow up…<br><br>Best regards`;
         if (settings.toggleSig && settings.signature) body += `<br><br>${settings.signature}`;
         document.getElementById('msgBody').innerHTML = body;
         document.getElementById('msgAttachList').innerHTML = '';
@@ -2205,6 +2235,7 @@
 
       function fmt(cmd) { document.getElementById('composeBody').focus(); document.execCommand(cmd, false, null); }
       function fmtMsg(cmd) { document.getElementById('msgBody').focus(); document.execCommand(cmd, false, null); }
+      function fmtContact(cmd) { document.getElementById('contactCustomMessage').focus(); document.execCommand(cmd, false, null); }
       function insertLink() {
         const url = prompt('Enter URL:');
         if (url) { document.getElementById('composeBody').focus(); document.execCommand('createLink', false, url); }
@@ -2440,6 +2471,8 @@
             phone: row.phone || '',
             status: row.status || 'active',
             notes: row.notes || '',
+            customSubject: row.customSubject || '',
+            customMessage: row.customMessage || '',
             followupSchedule: row.followupSchedule || '',
             nextFollowup: row.nextFollowup || '',
             lastContacted: row.lastContacted || '',
