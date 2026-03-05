@@ -1754,17 +1754,36 @@
             </div>
           </div>
 
-          <!-- FOLLOW-UP SCHEDULE -->
-          <div class="form-group">
-            <label style="font-size:13px;font-weight:600;color:var(--text);">Follow-up Schedule</label>
+          <!-- FOLLOW-UP SCHEDULE & AUTOMATION -->
+          <div class="form-group"
+            style="padding: 12px; background: rgba(108,99,255,0.05); border: 1px dashed rgba(108,99,255,0.3); border-radius: var(--radius-sm); margin-top: 12px;">
+            <label style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px;display:block;">Follow-up
+              Schedule & Automations</label>
             <div class="schedule-tabs">
               <button class="schedule-tab active" onclick="selectScheduleType('none',this)">None</button>
+              <button class="schedule-tab" onclick="selectScheduleType('immediate',this)">Immediate</button>
               <button class="schedule-tab" onclick="selectScheduleType('daily',this)">Daily</button>
               <button class="schedule-tab" onclick="selectScheduleType('weekly',this)">Weekly</button>
               <button class="schedule-tab" onclick="selectScheduleType('monthly',this)">Monthly</button>
               <button class="schedule-tab" onclick="selectScheduleType('custom',this)">Custom Dates</button>
             </div>
+
             <div id="scheduleConfig" style="margin-top:12px;"></div>
+
+            <div class="form-group" id="timeToSendGroup" style="margin-top:12px;">
+              <label>Time to Send (Your Timezone)</label>
+              <input type="time" id="contactTimeToSend" value="09:00">
+            </div>
+
+            <div class="form-group" style="margin-top:12px;">
+              <label>Attachments (Max 4MB, Saved natively to Drive)</label>
+              <div class="attach-zone" onclick="document.getElementById('contactFileInput').click()">
+                <p>📎 Click to upload attachment for this contact</p>
+                <span>Sent as physical attachment, not a link.</span>
+              </div>
+              <input type="file" id="contactFileInput" style="display:none;" onchange="uploadContactFile(event)">
+              <div class="attach-list" id="contactAttachList"></div>
+            </div>
           </div>
         </div>
         <div class="modal-footer">
@@ -1837,66 +1856,6 @@
           </button>
         </div>
 
-        <!-- AUTOMATE SETTINGS MODAL -->
-        <div class="modal-overlay" id="autoModal">
-          <div class="modal" style="max-width:600px;">
-            <div class="modal-header">
-              <div class="modal-title" id="autoModalTitle">Automate Settings</div>
-              <div class="close-btn" onclick="closeModal('autoModal')">×</div>
-            </div>
-            <div class="modal-body">
-              <p style="font-size:13px;color:var(--text3);margin-bottom:20px;">
-                Set up the background automation specific to this contact. Our backend will trigger automatically at the
-                specified time to send your custom message and files out.
-              </p>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Frequency</label>
-                  <div class="schedule-tabs" id="autoScheduleTabs">
-                    <button class="schedule-tab" onclick="selectAutoScheduleType('none',this)">None</button>
-                    <button class="schedule-tab" onclick="selectAutoScheduleType('daily',this)">Daily</button>
-                    <button class="schedule-tab" onclick="selectAutoScheduleType('weekly',this)">Weekly</button>
-                    <button class="schedule-tab" onclick="selectAutoScheduleType('monthly',this)">Monthly</button>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label>Time to Send (Your Timezone)</label>
-                  <input type="time" id="autoTime" value="09:00">
-                </div>
-              </div>
-              <div class="form-group">
-                <label>Custom Subject</label>
-                <input type="text" id="autoSubject" placeholder="Follow-up — {{name}}">
-              </div>
-              <div class="form-group">
-                <label>Custom Message</label>
-                <div class="editor-toolbar">
-                  <button class="editor-btn" type="button" onclick="fmtAuto('bold')"><b>B</b></button>
-                  <button class="editor-btn" type="button" onclick="fmtAuto('italic')"><i>I</i></button>
-                  <button class="editor-btn" type="button" onclick="fmtAuto('underline')"><u>U</u></button>
-                </div>
-                <div class="editor-area" id="autoBody" contenteditable="true" style="min-height: 120px;"></div>
-              </div>
-              <div class="form-group">
-                <label>Attachments (Saved to Drive)</label>
-                <div class="attach-zone" onclick="document.getElementById('autoFileInput').click()">
-                  <p>📎 Click to upload attachment to Google Drive</p>
-                </div>
-                <input type="file" id="autoFileInput" style="display:none;" onchange="uploadAutoFile(event)">
-                <div class="attach-list" id="autoAttachList"></div>
-              </div>
-            </div>
-            <div class="modal-footer">
-              <button class="btn btn-ghost" onclick="closeModal('autoModal')">Cancel</button>
-              <button class="btn btn-primary" onclick="saveAutoModal()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                </svg>
-                Save Automation
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -1908,12 +1867,9 @@
       let currentFilter = 'all';
       let currentFollowupTab = 'all';
       let attachments = { compose: [], msg: [] };
-      let editingContactId = null;
       let scheduleType = 'none';
       let customDates = [];
-      let autoContactId = null;
-      let autoScheduleType = 'none';
-      let autoAttachments = [];
+      let contactAttachments = [];
 
       // ===================== INIT =====================
       function init() {
@@ -1979,8 +1935,11 @@
         document.getElementById('contactNotes').value = '';
         document.getElementById('contactCustomSubject').value = '';
         document.getElementById('contactCustomMessage').innerHTML = '';
+        document.getElementById('contactTimeToSend').value = settings.defaultTime || '09:00';
         scheduleType = 'none';
         customDates = [];
+        contactAttachments = [];
+        renderContactAttachList();
         selectScheduleType('none', document.querySelector('.schedule-tab'));
         openModal('contactModal');
       }
@@ -1999,12 +1958,16 @@
         document.getElementById('contactNotes').value = c.notes || '';
         document.getElementById('contactCustomSubject').value = c.customSubject || '';
         document.getElementById('contactCustomMessage').innerHTML = c.customMessage || '';
+        document.getElementById('contactTimeToSend').value = c.timeToSend || settings.defaultTime || '09:00';
         scheduleType = c.scheduleType || 'none';
         customDates = c.customDates || [];
+        try { contactAttachments = JSON.parse(c.attachments || '[]'); } catch (e) { contactAttachments = []; }
+        renderContactAttachList();
+
         // set active schedule tab
         document.querySelectorAll('.schedule-tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.schedule-tab').forEach(t => {
-          if (t.textContent.toLowerCase().replace(' ', '') === scheduleType || (t.textContent === 'None' && scheduleType === 'none')) t.classList.add('active');
+          if (t.textContent.toLowerCase().replace(' ', '') === scheduleType || (t.textContent === 'None' && scheduleType === 'none') || (t.textContent === 'Immediate' && scheduleType === 'immediate')) t.classList.add('active');
         });
         renderScheduleConfig(c);
         openModal('contactModal');
@@ -2016,6 +1979,13 @@
         if (!name || !email) return toast('Name and email are required', 'error');
 
         const schedule = buildScheduleData();
+
+        // Handle immediate schedule override
+        let finalNextFollowup = schedule.next;
+        if (scheduleType === 'immediate') {
+          finalNextFollowup = new Date().toISOString().split('T')[0];
+        }
+
         const contact = {
           id: editingContactId || Date.now().toString(),
           name, email,
@@ -2026,8 +1996,10 @@
           customSubject: document.getElementById('contactCustomSubject').value.trim(),
           customMessage: document.getElementById('contactCustomMessage').innerHTML,
           scheduleType, customDates,
-          followupSchedule: schedule.label,
-          nextFollowup: schedule.next,
+          timeToSend: document.getElementById('contactTimeToSend').value,
+          attachments: JSON.stringify(contactAttachments),
+          followupSchedule: scheduleType === 'immediate' ? 'Immediate' : schedule.label,
+          nextFollowup: finalNextFollowup,
           lastContacted: ''
         };
 
@@ -2625,72 +2597,53 @@
         openModal('autoModal');
       }
 
-      function selectAutoScheduleType(type, el) {
-        autoScheduleType = type;
-        document.querySelectorAll('#autoScheduleTabs .schedule-tab').forEach(t => t.classList.remove('active'));
-        el.classList.add('active');
-      }
-
-      function fmtAuto(cmd) { document.getElementById('autoBody').focus(); document.execCommand(cmd, false, null); }
-
-      function renderAutoAttachList() {
-        const list = document.getElementById('autoAttachList');
-        list.innerHTML = autoAttachments.map((f, i) => `
+      function renderContactAttachList() {
+        const list = document.getElementById('contactAttachList');
+        list.innerHTML = contactAttachments.map((f, i) => `
           <div class="attach-item">
-            📎 ${f.name} <span class="remove-attach" onclick="removeAutoAttach(${i})">×</span>
+            <a href="${f.link || '#'}" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:500;">📎 ${f.name}</a> 
+            <span class="remove-attach" onclick="removeContactAttach(${i})">×</span>
           </div>`).join('');
       }
 
-      function removeAutoAttach(i) {
-        autoAttachments.splice(i, 1);
-        renderAutoAttachList();
+      function removeContactAttach(i) {
+        contactAttachments.splice(i, 1);
+        renderContactAttachList();
       }
 
-      function uploadAutoFile(evt) {
+      async function uploadContactFile(evt) {
         const file = evt.target.files[0];
         if (!file) return;
-        if (file.size > 200000) return toast('File must be very small (<200KB) for GS inline saving.', 'error'); // Strict GS cell char limit warning
+        if (file.size > 4000000) return toast('File must be under 4MB limit.', 'error');
+        if (!gsUrl) return toast('Please configure your Google Apps Script URL first!', 'error');
 
+        toast('Uploading file...', 'success');
         const reader = new FileReader();
-        reader.onload = function () {
-          autoAttachments.push({ name: file.name, type: file.type, base64: reader.result.split(',')[1] });
-          renderAutoAttachList();
-        }
+        reader.onload = async function () {
+          try {
+            const payload = {
+              action: 'upload_attachment',
+              filename: file.name,
+              mimeType: file.type,
+              base64: reader.result.split(',')[1]
+            };
+            const response = await fetch(gsUrl, {
+              method: 'POST',
+              body: JSON.stringify(payload)
+            });
+            const resData = await response.json();
+            if (resData.success && resData.fileId) {
+              contactAttachments.push({ id: resData.fileId, name: resData.fileName, link: resData.viewLink });
+              renderContactAttachList();
+              toast('Attachment synced to Drive!', 'success');
+            } else {
+              toast('Upload failed: ' + (resData.error || 'Unknown'), 'error');
+            }
+          } catch (err) {
+            toast('Upload exception: ' + err.message, 'error');
+          }
+        };
         reader.readAsDataURL(file);
-      }
-
-      function saveAutoModal() {
-        if (!autoContactId) return;
-        const idx = contacts.findIndex(x => x.id === autoContactId);
-        if (idx === -1) return;
-
-        const c = contacts[idx];
-        c.scheduleType = autoScheduleType;
-        c.timeToSend = document.getElementById('autoTime').value;
-        c.customSubject = document.getElementById('autoSubject').value.trim();
-        c.customMessage = document.getElementById('autoBody').innerHTML;
-        c.attachments = JSON.stringify(autoAttachments);
-
-        // Update Next Followup logic based on automate
-        if (autoScheduleType === 'daily') {
-          const d = new Date(); d.setDate(d.getDate() + 1);
-          c.nextFollowup = d.toISOString().split('T')[0];
-        } else if (autoScheduleType === 'weekly') {
-          const d = new Date(); d.setDate(d.getDate() + 7);
-          c.nextFollowup = d.toISOString().split('T')[0];
-        } else if (autoScheduleType === 'monthly') {
-          const d = new Date(); d.setMonth(d.getMonth() + 1);
-          c.nextFollowup = d.toISOString().split('T')[0];
-        } else if (autoScheduleType === 'none') {
-          c.nextFollowup = '';
-        }
-
-        gsAction('update', c);
-        persist();
-        renderContacts();
-        renderFollowups();
-        closeModal('autoModal');
-        toast('Automation Saved & Synced!', 'success');
       }
 
       function setupTrigger() {
