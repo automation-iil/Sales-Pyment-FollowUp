@@ -1562,6 +1562,20 @@
               </div>
             </div>
             <div class="settings-section">
+              <h3>Mail Configuration</h3>
+              <div class="form-group">
+                <label>Gmail App Code (App Password)</label>
+                <input type="password" id="gmailAppCode" placeholder="xxxx xxxx xxxx xxxx" autocomplete="new-password">
+              </div>
+            </div>
+            <div class="settings-section">
+              <h3>Integrations</h3>
+              <div class="form-group">
+                <label>Webhook URL</label>
+                <input type="url" id="webhookUrl" placeholder="https://hook.make.com/...">
+              </div>
+            </div>
+            <div class="settings-section">
               <h3>Preferences</h3>
               <div class="toggle-row">
                 <div>
@@ -2319,6 +2333,8 @@
         document.getElementById('defaultFreq').value = settings.defaultFreq || 'weekly';
         document.getElementById('defaultTime').value = settings.defaultTime || '09:00';
         document.getElementById('emailSignature').value = settings.signature || '';
+        document.getElementById('gmailAppCode').value = settings.gmailAppCode || '';
+        document.getElementById('webhookUrl').value = settings.webhookUrl || '';
         if (settings.toggleSig) document.getElementById('toggleSig').classList.add('on');
         else document.getElementById('toggleSig').classList.remove('on');
         if (settings.toggleReminder) document.getElementById('toggleReminder').classList.add('on');
@@ -2330,6 +2346,8 @@
         settings.defaultFreq = document.getElementById('defaultFreq').value;
         settings.defaultTime = document.getElementById('defaultTime').value;
         settings.signature = document.getElementById('emailSignature').value;
+        settings.gmailAppCode = document.getElementById('gmailAppCode').value;
+        settings.webhookUrl = document.getElementById('webhookUrl').value;
         settings.toggleSig = document.getElementById('toggleSig').classList.contains('on');
         settings.toggleReminder = document.getElementById('toggleReminder').classList.contains('on');
         localStorage.setItem('fp_settings', JSON.stringify(settings));
